@@ -1,0 +1,6 @@
+{
+  "id": "resource-statefulset",
+  "title": "Resource",
+  "description": "Statefulset",
+  "visible": false
+}

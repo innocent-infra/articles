@@ -1,0 +1,16 @@
+**What is this for?**
+If our interface does not support your resource type, you can deploy a custom yaml configuration here.
+This is likely to occur if you have installed a Custom Resource Definition which allows you to utilize non-standard resource types.
+
+You can also use this interface to import existing Kubernetes configurations into our interface, they will automatically be converted to their relevant GUI element.
+If a resource type is later supported by our GUI, then it will automatically be converted to its appropriate GUI element.
+
+If you want to stop a resource from being converted into a GUI element, then you can give it the annotation of "innofra/ignore-gui".
+
+---
+
+##### More Information
+These following documentation pages might assist you:
+
+- [Official Yaml Documentation](https://kubernetes.io/docs/concepts/overview/working-with-objects/kubernetes-objects/){:target="_blank"}
+- [Official Custom Resource Documentation](https://kubernetes.io/docs/concepts/extend-kubernetes/api-extension/custom-resources/){:target="_blank"}

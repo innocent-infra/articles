@@ -1,0 +1,26 @@
+**What is a Statefulset?**
+A Statefulset allows you to provision pods with a sequential and unique naming pattern.
+The benefit of this is when you want to provision stateful resources which require the same resource associations if they are recreated.
+
+It achieves this by registering all created pods to a headless service, which keeps track on which ids are available.
+
+You can imagine it like this example:
+
+![Example of a statefulset](/assets/img/docs/statefulset.svg)
+
+The Statefulset is creating the pods, in accordance to the information in the headless service. The pods can be then created and attached to the correct predictable volume.
+
+The Statefulset can then manage the release of new container versions, but allowing the pods to be upgraded, recreated and point to their old volume association.
+
+---
+
+##### More Information
+These following documentation pages might assist you:
+
+- [Official Statefulset Documentation](https://kubernetes.io/docs/concepts/workloads/controllers/statefulset/){:target="_blank"}
+- [Google Statefulset Documentation](https://cloud.google.com/kubernetes-engine/docs/concepts/statefulset){:target="_blank"}
+
+&nbsp;
+These following videos might help give you a strong foundational knowledge:
+- [Microsoft - The basics of stateful applications](https://www.youtube.com/watch?v=GieXzb91I40){:target="_blank"}
+- [TechWorld with Nana - StatefulSet simply explained](https://www.youtube.com/watch?v=pPQKAR1pA9U){:target="_blank"}

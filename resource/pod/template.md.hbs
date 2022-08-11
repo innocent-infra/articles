@@ -1,0 +1,31 @@
+**What is a Pod?**
+A Pod is the lowest form of abstraction for running a container in Kubernetes.
+It can contain multiple containers and manages how those containers are ran.
+
+A Pod provides the containers it contains their own environment for networking, resource allocation, volumes and policy control.
+This means multiple containers in a pod can communicate to eachother over localhost, and read/write to the same shared volume.
+
+You could imagine a simple pod like this:
+
+![Example of a pod](/assets/img/docs/pod.svg)
+
+The `Proxy` container can manage external networking requests, by forwarding the requests to the webserver over its localhost address.
+The `Webserver` container can share its logs to the `Log Parser` container through a shared volume.
+Of course, you can deploy a pod with a single container, and this is likely the most frequent use-case.
+
+These tightly grouped containers can then share the same policy and resource management control in Kubernetes.
+
+It is unadvised to deploy a Pod on its own as it is better to utilise a controller that manages the Pods deployment. Such as a Deployment, Statefulset or Daemonset.
+
+---
+
+##### More Information
+These following documentation pages might assist you:
+
+- [Official Pod Documentation](https://kubernetes.io/docs/concepts/workloads/pods/){:target="_blank"}
+- [Google Pod Documentation](https://cloud.google.com/kubernetes-engine/docs/concepts/pod){:target="_blank"}
+
+&nbsp;
+These following videos might help give you a strong foundational knowledge:
+- [Microsoft - Pods and the Pod Lifecycle](https://www.youtube.com/watch?v=wlYESb124xM){:target="_blank"}
+- [TechWorld with Nana - Pods and Containers](https://www.youtube.com/watch?v=5cNrTU6o3Fw){:target="_blank"}

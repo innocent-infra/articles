@@ -1,0 +1,146 @@
+### Why this is important?
+
+We are building more data heavy applications, this is an undeniable fact, however we rarely look at the performance of our data in our system.
+
+Our CPU clock speed, parallel processing and ram size means nothing if our underlying stream of data from disk is slow.
+
+Some cloud providers only provide unhelpful information such as the "IOPS" of their volumes or just that they are an "SSD", because SSD magically equals fast, right?
+
+---
+
+### How do we measure volume performance?
+
+[Input/Output Operations Per Second or IOPS](https://en.wikipedia.org/wiki/IOPS){:target=_blank} is the main advertised way to measure disk performance, in short, it is how often your storage device can perform read and write tasks.
+
+This is a fairly useless metric on its own though, as it makes no indication of the amount of data being written.
+A thousand write operations for 1 kilobyte of data, is very different to a thousand write operations for 1 megabyte of data, an order of over a thousand.
+
+IOPS therefore is often compared to the revolutions per minute or RPMs of a car engine, the engine can be spinning really fast, but without understanding the torque you will never be able to calculate the car's relative horsepower.
+
+---
+
+### How do we test volume performance?
+
+
+Since the advertised specs of a cloud volume could be unhelpful, it is worth us testing ourselves, and looking for two key metrics.
+
+- Latency, which measures the time between initiating the request and for it to be processed.
+- Throughput, how much data can we process over a period of time. This is a calculation of the IOPS * block size. Similar to how horsepower is a calculation of torque * rpm.
+
+We then want to compare these two metrics for both reading and writing operations. Generally speaking, read operations should be substantially faster than write operations, which is also generally the desired result as we read more than we write.
+It is also worth considering what configuration your volume has, as a volume with a raid configuration may need to commit extra writes to the storage array. Which will reduce its maximum write IOPS.
+
+We can test IOPS directly, but as we discovered, to do so would be useless. We can do a simple test with tools such as [dd](https://en.wikipedia.org/wiki/Dd_(Unix)){:target=_blank}, [hdparm](https://wiki.archlinux.org/title/hdparm){:target=_blank} or other tools that allow us to read and write a block of data on the disk. This seems like a simple, reliable and trustworthy test, but it's not how our systems read and write data in a real-world scenario.
+In a real-world scenario, the data we are reading and writing can be seemingly randomly accessed from different parts of the disk. When we do simple tests like this, we are giving our system the best conditions to convince us that it is much more performant than it is. This is deceptive and useless. This is also another reason why it is useless to trust official benchmarks provided by a cloud provider, they will usually prefer the best-case scenario metrics.
+
+---
+
+### Testing with fio
+
+[Fio](https://github.com/axboe/fio){:target=_blank} is a really cool I/O tester, which allows us to test a volume for its worst-case scenario metrics. It has lots of configuration options, the coolest for us are:
+
+- Block Size: So you can test the volume with block sizes that match the average block size that your application utilises.
+- Random Access: So we can test how the disk reacts to non-sequential reads/writes.
+- Parallel Jobs: We can visualise how our disk reacts when multiple jobs are running at once.
+
+If we utilise the command [lsblk](https://man7.org/linux/man-pages/man8/lsblk.8.html){:target=_blank} we can view all mounted drives on our system, and navigate to the drive with our mounted volume.
+
+For example:
+
+```console:Shell
+root@inno-prod-pool1-76ff6c4bd5-qgkf9#lsblk
+NAME    MAJ:MIN RM   SIZE RO TYPE MOUNTPOINT
+sda       8:0    0 343.3G  0 disk
+├─sda1    8:1    0 343.1G  0 part /
+├─sda14   8:14   0     1M  0 part
+└─sda15   8:15   0   256M  0 part /boot/efi
+sdb       8:16   0    12G  0 disk /var/lib/kubelet/pods/14081d98-ee41-433b-8c9a-7592365b93b6/volumes/kubernetes.io~csi/redis-data-innofra-core-redis-master-0/mount
+sdc       8:32   0    12G  0 disk /var/lib/kubelet/pods/10273649-4b89-4e66-a91c-24afd55110fe/volumes/kubernetes.io~csi/innofra-core-api-mono2-pgadmin4/mount
+sdd       8:48   0    12G  0 disk /var/lib/kubelet/pods/da85216a-1794-4836-bda0-8a6cfa0cb059/volumes/kubernetes.io~csi/postgres-api-mono-pgwal-0/mount
+sde       8:64   0    12G  0 disk /var/lib/kubelet/pods/da85216a-1794-4836-bda0-8a6cfa0cb059/volumes/kubernetes.io~csi/postgres-api-mono-pgdata-0/mount
+sr0      11:0    1  1024M  0 rom
+
+root@inno-prod-pool1-76ff6c4bd5-qgkf9#cd "/var/lib/kubelet/pods/da85216a-1794-4836-bda0-8a6cfa0cb059/volumes/kubernetes.io~csi/postgres-api-mono-pgdata-0/mount"
+```
+
+Then we can run a basic test.
+
+```console:Shell
+root@inno-prod-pool1-76ff6c4bd5-qgkf9#fio --name "RANDOM_TEST" --eta-newline="5s" --filename="random.test" --rw="randrw" --size="2g" --io_size="10g" --blocksize="4k" --ioengine="libaio" --fsync="1" --iodepth="1" --direct="1" --numjobs="1" --runtime="60" --group_reporting
+```
+
+The trick is to try to find a series of configuration options for fio which match the type of payload that your application requires.
+In the fio documentation, they have configuration examples for different types of test types: https://fio.readthedocs.io/en/latest/fio_doc.html#examples
+
+---
+
+### Testing Databases
+
+Databases often utilise a concept known as [write-ahead logging or a WAL](https://en.wikipedia.org/wiki/Write-ahead_logging){:target=_blank}, this is a way to help prevent data-loss in the event of an outage.
+Before an operation modifies the database, it is first written to a performant log on disk. This means if something crashes, we can replay the remaining unprocessed items in the log.
+It is generally possible to store the WAL and the databases data in different volumes.
+
+The reason why this is important, and related to volume performance, is we need to ensure that the volume storing the WAL is extremely performant.
+If the disk operating the WAL is slow, than we run the risk that database mutation operations were not safely recorded before a crash happened.
+Since, under normal configurations, the database requires the WAL to be successfully written to, before proceeding with its own mutations, if something bad happens, we could loose data.
+
+We can use fio to run a test to mimic the speed of a WAL, since WAL’s are append-only and our main concern is writing, we do not need to utilise the random access functionality of fio.
+
+```console:Shell
+root@inno-prod-pool1-76ff6c4bd5-qgkf9#fio --name "DB_TEST" --eta-newline="5s" --filename="sequential.test" --rw="write" --size="22m" --blocksize="2300" --ioengine="sync" --fsync="1"
+```
+
+The core lines in the output we want to investigate is the `fsync/fdatasync/sync_file_range` sync percentiles:
+
+```console:Shell
+  fsync/fdatasync/sync_file_range:
+    sync (usec): min=117, max=15727, avg=241.68, stdev=442.34
+    sync percentiles (usec):
+     |  1.00th=[  135],  5.00th=[  147], 10.00th=[  155], 20.00th=[  163],
+     | 30.00th=[  172], 40.00th=[  180], 50.00th=[  188], 60.00th=[  200],
+     | 70.00th=[  215], 80.00th=[  239], 90.00th=[  330], 95.00th=[  529],
+     | 99.00th=[  725], 99.50th=[  914], 99.90th=[ 6259], 99.95th=[13304],
+     | 99.99th=[15664]
+```
+
+We should ensure that, at a bare minimum, that the 99th percentile matches the requirements we have for our database.
+A terrible benchmark would be anything that takes longer than 10msec, or 10,000usec.
+However, it is worth checking with your databases documentation to understand what the WAL's fsync maximum duration realistically should be.
+
+This would be an example of an undesirably slow volume, which would struggle under load:
+
+```console:Shell
+  fsync/fdatasync/sync_file_range:
+    sync (usec): min=5008, max=68416, avg=9453.66, stdev=3743.38
+    sync percentiles (usec):
+     |  1.00th=[ 6325],  5.00th=[ 6783], 10.00th=[ 6980], 20.00th=[ 7373],
+     | 30.00th=[ 7635], 40.00th=[ 7898], 50.00th=[ 8291], 60.00th=[ 8717],
+     | 70.00th=[ 9503], 80.00th=[10683], 90.00th=[13173], 95.00th=[15795],
+     | 99.00th=[23987], 99.50th=[30802], 99.90th=[45876], 99.95th=[51119],
+     | 99.99th=[61080]
+```
+
+With a disk so slow, you could even consider disabling the WAL, as it could be deemed to slow to be of any benefit, and could actually hinder your systems performance and stability. As databases usually wait for the write to the WAL to be completed before proceeding. Obviously, ideally, you should just move to a faster disk.
+
+---
+
+### How do I know how to configure fio?
+
+It is important to configure fio’s settings to match the types of data your system is producing, or otherwise the tests can be very misleading. Disks can act very differently under different load configurations.
+
+[Lsof](https://en.wikipedia.org/wiki/Lsof){:target=_blank} is a linux command that allows you to list all open files, by application, this is a good start for your investigations, you can look at the `SIZE/OFF` column to visualise the average size of a file used by an application. For example: `lsof 2>/dev/null | grep -i process-name | numfmt --field=7 --to=iec`.
+
+For more advanced investigation you can utilise [strace](https://en.wikipedia.org/wiki/Strace){:target=_blank} to monitor the system calls your application makes, in order to record any patterns you can find with how your applications interacts with the disk, then use that information to correctly configure fio.
+
+---
+
+### Conclusion
+
+It is important to properly understand your disk performance requirements because it is a very subtle way of reducing your entire systems performance.
+
+It is also important to consider how one application in your cluster can put extra load on your disk, and steal available IOPS from other applications that require the same disk.
+
+Currently in Kubernetes it is not possible to put IOPS requests/limits on a persistentVolumeClaim, however a ticket for this is currently in progress.
+You can read about the progress of this ticket here: [https://github.com/kubernetes/kubernetes/issues/92287](https://github.com/kubernetes/kubernetes/issues/92287){:target=_blank}
+
+Thank you for reading.

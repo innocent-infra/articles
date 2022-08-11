@@ -1,0 +1,20 @@
+{
+  "id": "video-gitops",
+  "title": "GitOps",
+  "description": "An Introduction to GitOps",
+  "source": "https://github.com/innocent-infra/articles/tree/production/video/gitops",
+  "date": "1657931212",
+  "contexts": [
+    "VIDEO"
+  ],
+  "video": {
+    "ref": "a9b1824e-a5f6-0c59-e472-d47c0f431515-vod-1f4cda66-df2a-add6-2d40-36f197eb8cd3",
+    "thumb": "https://universe-files.dacast.com/26b50f12-7041-5ccd-165c-cc73924fdd88",
+    "type": "DACAST"
+  },
+  "tags": [
+    "KUBERNETES",
+    "GITOPS",
+    "IAC"
+  ]
+}

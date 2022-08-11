@@ -1,0 +1,6 @@
+{
+  "id": "resource-pvc",
+  "title": "Resource",
+  "description": "PVC",
+  "visible": false
+}

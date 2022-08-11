@@ -1,0 +1,86 @@
+### Introduction
+
+GitOps is a modern approach to automating infrastructure and the deployment of company applications.
+
+---
+
+### Context of existence
+
+With the technological revolution of DevOps, pioneered in the 2010s, a collective industrial effort was made to merge the advances of application development into operations. Out of its many benefits, the most iconic was the automation and testability of a company's infrastructure.
+Companies, for example, that failed to adopt such a mindset would often struggle to release new changes more frequently than once every few months, whereas companies with mature DevOps implementations can do so, on an hourly basis.
+
+Tools such as Ansible, Terraform and Puppet, paved the way for companies to automate their infrastructure by coding. Called Infrastructure as Code. At the moment, this is the current leading methodology in the industry, however, even though it is young, major issues are arising around the topics of maintainability, complexity and drift. Drift is a term used to describe an infrastructure that has deviated from its intended state.
+This can make responding to issues difficult.
+
+---
+
+### Explanation
+
+In 2014, Kubernetes was released, a new platform for managing application infrastructure. At its heart, Kubernetes is an elaborate database, which stores the intended state of each resource and has operators that attempt to ensure that the desired and actual states of resources match.
+Yaml, a data serialisation language that supersets JSON, is the main method used to instruct Kubernetes on the intended state of cluster resources.
+
+GitOps was invented by WeaveWorks on the thought experiment of, what would happen if the intended state of each resource was not necessarily stored inside of Kubernetes, but outside, in, for example, a Git repository.
+This means that all changes could be audited, the existence of drift from source-code to reality can be eliminated, clusters can be more confidently destroyed and rebuilt and best of all there is no cd pipeline to maintain.
+
+This mindset of work can also be used to coin a new term of Infrastructure as Data, which implies the advances made by Infrastructure of Code, and allows the infrastructure to be described in a more easily digestible data format.
+
+---
+
+### Hands On
+
+Now we understand the context of what GitOps is and why it was invented, we can get stuck into showing it off.
+The two leading implementations of GitOps are Flux by WeaveWorks and ArgoCD by the Argo Project. Also, since GitOps, as a concept, is very tied to how Kubernetes operates, we will be utilising Kubernetes.
+We are going to look at ArgoCD because it provides a very easy to use interface. Not only does the interface help you diagnose issues and visualise your applications, but most importantly, the interface allows developers to control and be responsible for their own applications running in Kubernetes.
+
+I am going to start by running a local [k3s](https://k3s.io/){:target="_blank"} distribution of Kubernetes. Called [k3d](https://k3d.io){:target="_blank"}. You can use whatever Kubernetes environment is available to you.
+
+```console:Shell
+$k3d cluster create "gitops" –kubeconfig-switch-context
+```
+
+We can now easily install argocd with the setup commands listed on their site:
+
+```console:Shell
+$kubectl create namespace "argocd"
+$kubectl apply -n "argocd" -f "https://raw.githubusercontent.com/argoproj/argo-cd/stable/manifests/install.yaml"
+```
+
+If you are installing this in a company environment, you may want to investigate installing [ArgoCD with helm](https://github.com/argoproj/argo-helm/tree/main/charts/argo-cd){:target="_blank"}, so you can configure things like resource usage and single-sign on.
+
+I am now going to utilise a tool called [k9s](https://k9scli.io/){:target="_blank"} to be able to view my cluster, in-real time, so we can watch ArgoCD install.
+
+If I now go to view my secrets, I can see a secret was created called `argocd-initial-admin-secret`. If I retrieve this password, I can port-forward to the argocd-server to login to ArgoCD.
+
+Once we are in ArgoCD we can manage and view our applications, we have nothing so far, but we can manually install, for example, a simple postgres helm chart.
+
+As you can see, we now have a new application, and postgres is being installed into our cluster. ArgoCD will now ensure that our system stays in sync with the intended state of the repository, and will handle the update procedure for us.
+
+However, this is not the ideal way to deploy applications as my changes themselves to install these applications were not recorded in git. This means that they were not audited and are also not stored in re-deployable format.
+
+I can see that inside of the cluster that ArgoCD created a custom resource for my manually created resource. This application resource can be stored with my source code when I am building my Kubernetes environment and therefore allow me to automate the deployment of my applications. My personal favourite way to do this is to create a simple Helm Operator, which is responsible for provisioning these core resources. This works well as it allows you to easily do a rolling-update on your clusters initialisation scripts.
+
+---
+
+### Concerns
+
+GitOps is not without its added complexities, your CI pipelines that build and deploy new application versions, must also record their change in Git. It should not be considered acceptable to have a CI system that manually makes unaudited and unsynced changes to Kubernetes. This requires a rewiring of our approach to CI pipelines.
+
+Secondly, GitOps implementations can be fairly resource intensive, they are often syncing and caching repositories, which adds an additional overhead to running applications in your cluster.
+
+Thirdly, If your GitOps setup experiences downtime, you have effectively removed the ability for people to release new updates to their applications. This can be painful for some organisations.
+
+Additionally, you must spend time to ensure that you have proper protections on your git branches, otherwise people can push unauthorised changes straight to production.
+
+Furthermore, not all resources inherently work in the GitOps mindset, such as secrets, to implement such resources you must find alternative solutions. Such as ExternalSecrets or SealedSecrets.
+You may also find that some resources incorrectly state their intended state, and this may require you to create specialised ignore rules, to prevent resources from breaking.
+
+Lastly, it is important to recognise that, while we are simplifying things, we are doing so by adding an extra layer of complexity, which can have its own issues.
+
+---
+
+### Conclusion
+
+Over the past ten years the landscape of operations has changed dramatically, Infrastructure as Data is born from the lessons of Infrastructure as Code.
+It will be interesting to see what the next lesson we learn will be.
+
+Thank you for reading.

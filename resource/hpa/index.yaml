@@ -1,0 +1,6 @@
+{
+  "id": "resource-hpa",
+  "title": "Resource",
+  "description": "HPA",
+  "visible": false
+}

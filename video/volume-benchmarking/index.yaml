@@ -1,0 +1,18 @@
+{
+  "id": "video-volume-benchmarking",
+  "title": "Volume Benchmarking",
+  "description": "Is Your Cloud Provider Shafting Your Volumes Performance?",
+  "source": "https://github.com/innocent-infra/articles/tree/production/video/volume-benchmarking",
+  "date": "1659641884",
+  "contexts": [
+    "VIDEO"
+  ],
+  "video": {
+    "thumb": "/assets/img/unsplash/sangga-rima-roman-selia-VkNrl7ZHi5M-unsplash.jpg",
+    "type": "NONE"
+  },
+  "tags": [
+    "KUBERNETES",
+    "STORAGE"
+  ]
+}

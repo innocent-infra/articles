@@ -1,0 +1,6 @@
+{
+  "id": "resource-configmap",
+  "title": "Resource",
+  "description": "Configmap",
+  "visible": false
+}
